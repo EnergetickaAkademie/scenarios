@@ -45,34 +45,34 @@ class PlayRound(Round):
 			"coal": 1.0 			#coal
 		}
 
-		self.weather = None
+		self.weather = []
 
 	def setWeather(self, weather: WeatherType):
 		if weather == WeatherType.SUNNY:
-			self.weather = WeatherType.SUNNY
+			self.weather.append(WeatherType.SUNNY)
 			self.setPVCoefficient(1.0)
 		
 		elif weather == WeatherType.RAINY:
-			self.weather = WeatherType.RAINY
+			self.weather.append(WeatherType.RAINY)
 		
 		elif weather == WeatherType.CLOUDY:
-			self.weather = WeatherType.CLOUDY
+			self.weather.append(WeatherType.CLOUDY)
 			self.setPVCoefficient(0.5)
 		
 		elif weather == WeatherType.SNOWY:
-			self.weather = WeatherType.SNOWY
+			self.weather.append(WeatherType.SNOWY)
 
 		elif weather == WeatherType.FOGGY:
-			self.weather = WeatherType.FOGGY
+			self.weather.append(WeatherType.FOGGY)
 
 		elif weather == WeatherType.WINDY:
-			self.weather = WeatherType.WINDY
+			self.weather.append(WeatherType.WINDY)
 			self.setWindCoefficient(1.0)
 
 		elif weather == WeatherType.CALM:
-			self.weather = WeatherType.CALM
+			self.weather.append(WeatherType.CALM)
 
-	def getWeather(self) -> Optional[WeatherType]:
+	def getWeather(self) -> Optional[List[WeatherType]]:
 		return self.weather
 
 	def setRoundType(self, round_type: RoundType):
