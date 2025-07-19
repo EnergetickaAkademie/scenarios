@@ -6,7 +6,7 @@ The required part of the script is the function `getScript()`, that returns an i
 Currently, round types are `Day`, `Night`, `Slide`, and `SlideRange`.
 Weather conditions take a `Day` or `Night` as an argument, and can be `Sunny`, `Windy`, `Rainy`, or `Snowy`, with the outermost condition overriding the set production coefficients of the inner ones.
 
-```
+```python
 from Enak import *
 
 def getScript():
