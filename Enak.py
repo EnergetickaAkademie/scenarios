@@ -2,7 +2,6 @@
 
 from enum import Enum
 from typing import Optional, override, List
-from BuildingTypes import Building
 
 class Source(Enum):
 	PHOTOVOLTAIC = "photovoltaic"
