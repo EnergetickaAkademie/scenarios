@@ -30,6 +30,7 @@ def getScript():
 
 	n = Windy(Night())
 	script.addRound(n)
+	script.changeConsupmtion(Building.CITY_CENTER, 750, 300)
 
 	sl = Slide(6)
 	script.addRound(sl)

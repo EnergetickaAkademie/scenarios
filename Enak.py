@@ -269,8 +269,10 @@ class Snowy(WeatherRound):
 class Script:
 	def __init__(self, building_consumptions: dict):
 		self.rounds : List[Round] = []
+		self.building_changes = {}
 		self.pdf : str = None
 		self.building_consumptions = building_consumptions
+		self.current_round_index = 0
 
 	def addRound(self, round: Round):
 		self.rounds.append(round)
@@ -286,3 +288,78 @@ class Script:
 	
 	def getBuildingConsumption(self, building: Building) -> Optional[tuple]:
 		return self.building_consumptions.get(building, None)
+	
+	def changeConsupmtion(self, building: Building, day_consumption: int, night_consumption: int):
+		#change the building consumption for the given building type
+		#set the value change to the dictionary under the index of the latest round (will need to be handled by the interpreter)
+		if building in self.building_consumptions:
+			if self.building_changes.get(len(self.rounds) - 1) is None:
+				self.building_changes[len(self.rounds) - 1] = []
+
+			self.building_changes[len(self.rounds) - 1].append((building, day_consumption, night_consumption))
+
+	def stepOneRound(self) -> bool:
+		if self.rounds:
+			if self.current_round_index < len(self.rounds):
+				rnd = self.rounds[self.current_round_index]
+				self.current_round_index += 1
+				
+				#update the building_consumptions if there are any building_changes for the current round (add the value from the same Building type)
+				if self.building_changes.get(self.current_round_index - 1):
+					for change in self.building_changes[self.current_round_index - 1]:
+						building, day_consumption, night_consumption = change
+						self.building_consumptions[building] = (day_consumption, night_consumption)
+				
+				return True
+			
+			else:
+				return False
+			
+		else:
+			return False
+		
+	def getProductionCoefficients(self) -> dict:
+		if self.rounds and self.current_round_index > 0:
+			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
+				return self.rounds[self.current_round_index - 1].production_coefficients
+			
+		return {}
+
+	def getBuildingConsumption(self, building: Building) -> Optional[tuple]:
+		#get the current building consumption with the modifiers from the current PlayRound
+		if self.rounds and self.current_round_index > 0:
+			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
+				# get the base consumption
+				base_consumption = self.building_consumptions.get(building, None)
+				if base_consumption is not None:
+					# apply the modifier from the current round
+					modifier = self.rounds[self.current_round_index - 1].building_modifiers.get(building, 0.0)
+					return (base_consumption[0] + modifier, base_consumption[1] + modifier)
+
+		return 0.0
+
+	def getCurrentWeather(self) -> Optional[List[WeatherType]]:
+		if self.rounds and self.current_round_index > 0:
+			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
+				return self.rounds[self.current_round_index - 1].getWeather()
+		
+		return None
+	
+	def getCurrentRoundType(self) -> Optional[Round]:
+		#return if current round is day, night, or slide (return the type)
+		if self.rounds and self.current_round_index > 0:
+			return self.rounds[self.current_round_index - 1].getType()
+
+		return None
+
+	def getCurrentRound(self) -> Optional[Round]:
+		if self.rounds and self.current_round_index > 0:
+			return self.rounds[self.current_round_index - 1]
+		
+		return None
+	
+	def getCurrentSlideNumber(self) -> Optional[int]:
+		if self.rounds and self.current_round_index > 0:
+			return self.rounds[self.current_round_index - 1].getSlideNumber()
+
+		return None
