@@ -30,14 +30,14 @@ def getScript():
 
 	n = Windy(Night())
 	script.addRound(n)
-	script.changeConsupmtion(Building.CITY_CENTER, 750, 300)
 
 	sl = Slide(6)
 	script.addRound(sl)
+	script.changeConsupmtion(Building.CITY_CENTER, 750, 300)
 
 	d = Sunny(Windy(Day("Koná se mistrovství světa v ledním hokeji")))
 	d.outage(Source.GAS) #there is a gas outage in this round
-	d.addBuildingModifier(Building.STADIUM, 200)  #increase stadium consumption because of a specific event
+	d.addBuildingModifier(Building.STADIUM, 100)  #increase stadium consumption because of a specific event
 	script.addRound(d)
 
 	return script

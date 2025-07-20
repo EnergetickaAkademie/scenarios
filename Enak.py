@@ -104,6 +104,9 @@ class PlayRound(Round):
 		elif weather == WeatherType.CALM:
 			self.weather.append(WeatherType.CALM)
 
+	def getType(self) -> RoundType:
+		return self.type
+
 	def getWeather(self) -> Optional[List[WeatherType]]:
 		return self.weather
 
@@ -221,10 +224,13 @@ class SlideRange(Round):
 		return f"SlideRange(start={self.start}, end={self.end})"
 
 class WeatherRound(PlayRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
+	def __init__(self, round: PlayRound, comment: Optional[str] = None):
 		# use the comment from the wrapped round if no new comment is provided
 		effective_comment = comment if comment is not None else (round.comment if hasattr(round, 'comment') else None)
 		
+		if not isinstance(round, PlayRound):
+			raise TypeError("Expected a PlayRound instance for WeatherRound initialization.")
+
 		super().__init__(effective_comment)
 
 		self.setRoundType(round.type)
@@ -232,6 +238,9 @@ class WeatherRound(PlayRound):
 		if hasattr(round, 'production_coefficients'):
 			for key, value in round.production_coefficients.items():
 				self.production_coefficients[key] = value
+
+		else:
+			raise ValueError("The provided round does not have production coefficients.")
 
 		if hasattr(round, 'weather') and round.weather:
 			self.weather = round.weather.copy()
@@ -286,9 +295,6 @@ class Script:
 	def getPDF(self):
 		return self.pdf
 	
-	def getBuildingConsumption(self, building: Building) -> Optional[tuple]:
-		return self.building_consumptions.get(building, None)
-	
 	def changeConsupmtion(self, building: Building, day_consumption: int, night_consumption: int):
 		#change the building consumption for the given building type
 		#set the value change to the dictionary under the index of the latest round (will need to be handled by the interpreter)
@@ -298,7 +304,7 @@ class Script:
 
 			self.building_changes[len(self.rounds) - 1].append((building, day_consumption, night_consumption))
 
-	def stepOneRound(self) -> bool:
+	def step(self) -> bool:
 		if self.rounds:
 			if self.current_round_index < len(self.rounds):
 				rnd = self.rounds[self.current_round_index]
@@ -318,14 +324,14 @@ class Script:
 		else:
 			return False
 		
-	def getProductionCoefficients(self) -> dict:
+	def getCurrentProductionCoefficients(self) -> dict:
 		if self.rounds and self.current_round_index > 0:
 			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
 				return self.rounds[self.current_round_index - 1].production_coefficients
 			
 		return {}
 
-	def getBuildingConsumption(self, building: Building) -> Optional[tuple]:
+	def getCurrentBuildingConsumption(self, building: Building) -> Optional[tuple]:
 		#get the current building consumption with the modifiers from the current PlayRound
 		if self.rounds and self.current_round_index > 0:
 			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
@@ -334,7 +340,13 @@ class Script:
 				if base_consumption is not None:
 					# apply the modifier from the current round
 					modifier = self.rounds[self.current_round_index - 1].building_modifiers.get(building, 0.0)
-					return (base_consumption[0] + modifier, base_consumption[1] + modifier)
+					production = (base_consumption[0] + modifier, base_consumption[1] + modifier)
+
+					if self.rounds[self.current_round_index - 1].getRoundType() == RoundType.DAY:
+						return production[0]
+					
+					elif self.rounds[self.current_round_index - 1].getRoundType() == RoundType.NIGHT:
+						return production[1]
 
 		return 0.0
 
