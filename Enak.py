@@ -2,6 +2,7 @@
 
 from enum import Enum
 from typing import Optional, override, List
+from BuildingTypes import Building
 
 class Source(Enum):
 	PHOTOVOLTAIC = "photovoltaic"
@@ -26,6 +27,21 @@ class WeatherType(Enum):
 	FOGGY = "foggy"
 	WINDY = "windy"
 	CALM = "calm"
+
+class Building(Enum):
+	CITY_CENTER = "city_center"
+	FACTORY = "factory"
+	STADIUM = "stadium"
+	HOSPITAL = "hospital"
+	UNIVERSITY = "university"
+	AIRPORT = "airport"
+	SHOPPING_MALL = "shopping_mall"
+	TECHNOLOGY_CENTER = "technology_center"
+
+	FARM = "farm"
+	LIVING_QUARTER_SMALL = "living_quarter_small"
+	LIVING_QUARTER_LARGE = "living_quarter_large"
+	SCHOOL = "school"
 
 class Round:
 	def __init__(self, comment: Optional[str] = None):
@@ -53,6 +69,14 @@ class PlayRound(Round):
 			Source.HYDRO_STORAGE: 1.0,
 			Source.COAL: 1.0
 		}
+
+		# production modifiers are added to the default building consumption defined in the script
+		# eg. if a building of type BuildingType.FACTORY has a default production of 1000 (MW)
+		# a value of -200 here would make the consumption 800 (MW)
+		self.building_modifiers = {}
+
+		for building in Building:
+			self.building_modifiers[building] = 0.0
 
 		self.weather = []
 
@@ -118,6 +142,12 @@ class PlayRound(Round):
 			self.production_coefficients[source] = 0.0
 		else:
 			raise ValueError(f"Unknown energy source: {source}")
+		
+	def addBuildingModifier(self, building: Building, modifier: float):
+		if building in self.building_modifiers:
+			self.building_modifiers[building] += modifier
+		else:
+			raise ValueError(f"Unknown building type: {building}")
 
 	def __str__(self):
 
@@ -133,6 +163,11 @@ class PlayRound(Round):
 		res += "\n--production coefficients--"
 
 		for key, value in self.production_coefficients.items():
+			res += f"\n{key}={value}"
+
+		#print all of the building modifiers
+		res += "\n--building modifiers--"
+		for key, value in self.building_modifiers.items():
 			res += f"\n{key}={value}"
 
 		return res
@@ -233,9 +268,10 @@ class Snowy(WeatherRound):
 		self.setWeather(WeatherType.SNOWY)
 
 class Script:
-	def __init__(self):
+	def __init__(self, building_consumptions: dict):
 		self.rounds : List[Round] = []
 		self.pdf : str = None
+		self.building_consumptions = building_consumptions
 
 	def addRound(self, round: Round):
 		self.rounds.append(round)
@@ -248,3 +284,6 @@ class Script:
 
 	def getPDF(self):
 		return self.pdf
+	
+	def getBuildingConsumption(self, building: Building) -> Optional[tuple]:
+		return self.building_consumptions.get(building, None)
