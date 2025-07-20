@@ -3,6 +3,14 @@
 from enum import Enum
 from typing import Optional, override, List
 
+class Source(Enum):
+	PHOTOVOLTAIC = "photovoltaic"
+	WIND = "wind"
+	NUCLEAR = "nuclear"
+	GAS = "gas"
+	HYDRO = "hydro"
+	HYDRO_STORAGE = "hydro_storage"
+	COAL = "coal"
 
 class RoundType(Enum):
 	DAY = "day"
@@ -20,8 +28,9 @@ class WeatherType(Enum):
 	CALM = "calm"
 
 class Round:
-	def __init__(self):
+	def __init__(self, comment: Optional[str] = None):
 		self.type = None
+		self.comment = comment
 
 	def getRoundType(self) -> RoundType:
 		return self.type
@@ -30,19 +39,19 @@ class Round:
 		self.type = round_type
 
 	def __str__(self):
-		return f"Round(type={self.type})"
+		return f"Round(type={self.type}, comment={self.comment})"
 
 class PlayRound(Round):
-	def __init__(self):
-		super().__init__()
+	def __init__(self, comment: Optional[str] = None):
+		super().__init__(comment)
 		self.production_coefficients = {
-			"photovoltaic": 0.0, 	#photovoltaic
-			"wind": 0.0, 			#wind
-			"nuclear": 1.0, 		#nuclear
-			"gas": 1.0, 			#gas
-			"hydro": 1.0, 			#water
-			"hydro_storage": 1.0, 	#hydroelectric storage
-			"coal": 1.0 			#coal
+			Source.PHOTOVOLTAIC: 0.0,
+			Source.WIND: 0.0,
+			Source.NUCLEAR: 1.0,
+			Source.GAS: 1.0,
+			Source.HYDRO: 1.0,
+			Source.HYDRO_STORAGE: 1.0,
+			Source.COAL: 1.0
 		}
 
 		self.weather = []
@@ -84,43 +93,65 @@ class PlayRound(Round):
 			self.setPVCoefficient(0.0)
 
 	def setPVCoefficient(self, coefficient: float):
-		self.production_coefficients["photovoltaic"] = coefficient
+		self.production_coefficients[Source.PHOTOVOLTAIC] = coefficient
 
 	def setWindCoefficient(self, coefficient: float):
-		self.production_coefficients["wind"] = coefficient
+		self.production_coefficients[Source.WIND] = coefficient
 
 	def setNuclearCoefficient(self, coefficient: float):
-		self.production_coefficients["nuclear"] = coefficient
+		self.production_coefficients[Source.NUCLEAR] = coefficient
 
 	def setGasCoefficient(self, coefficient: float):
-		self.production_coefficients["gas"] = coefficient
+		self.production_coefficients[Source.GAS] = coefficient
 
 	def setHydroCoefficient(self, coefficient: float):
-		self.production_coefficients["hydro"] = coefficient
+		self.production_coefficients[Source.HYDRO] = coefficient
 
 	def setHydroStorageCoefficient(self, coefficient: float):
-		self.production_coefficients["hydro_storage"] = coefficient
+		self.production_coefficients[Source.HYDRO_STORAGE] = coefficient
 
 	def setCoalCoefficient(self, coefficient: float):
-		self.production_coefficients["coal"] = coefficient
+		self.production_coefficients[Source.COAL] = coefficient
+
+	def outage(self, source: Source):
+		if source in self.production_coefficients:
+			self.production_coefficients[source] = 0.0
+		else:
+			raise ValueError(f"Unknown energy source: {source}")
 
 	def __str__(self):
-		return f"Round(type={self.type}, weather={self.weather}, production_coefficients={self.production_coefficients})"
+
+		res = f"PlayRound"
+		res += f"\n{self.comment if self.comment else ''},"
+		res += f"\n{self.type.name},"
+
+		res += "\n--weather--"
+		
+		for w in self.weather:
+			res += f"\n{w.name}"
+
+		res += "\n--production coefficients--"
+
+		for key, value in self.production_coefficients.items():
+			res += f"\n{key}={value}"
+
+		return res
+		#return f"Round(type={self.type}, weather={self.weather}, production_coefficients={self.production_coefficients}, comment={self.comment})"
 
 class Day(PlayRound):
-	def __init__(self):
-		super().__init__()
+	def __init__(self, comment: Optional[str] = None):
+		super().__init__(comment)
 		self.setRoundType(RoundType.DAY)
 
 class Night(PlayRound):
-	def __init__(self):
-		super().__init__()
+	def __init__(self, comment: Optional[str] = None):
+		super().__init__(comment)
 		self.setRoundType(RoundType.NIGHT)
 
 class Slide(Round):
-	def __init__(self, slide_number: Optional[int] = None):
-		super().__init__()
-		self.type = RoundType.SLIDE
+	def __init__(self, slide_number, comment: Optional[str] = None):
+		super().__init__(comment)
+		self.setRoundType(RoundType.SLIDE)
 		self.slide_number = slide_number
 
 	def setSlideNumber(self, slide_number: int):
@@ -133,8 +164,8 @@ class Slide(Round):
 		return f"Slide(slide_number={self.slide_number})"
 	
 class SlideRange(Round):
-	def __init__(self, start: int, end: int):
-		super().__init__()
+	def __init__(self, start: int, end: int, comment: Optional[str] = None):
+		super().__init__(comment)
 		self.setRoundType(RoundType.SLIDE_RANGE)
 		self.start = start
 		self.end = end
@@ -156,43 +187,49 @@ class SlideRange(Round):
 		return f"SlideRange(start={self.start}, end={self.end})"
 
 class WeatherRound(PlayRound):
-	def __init__(self, round: Round):
-		super().__init__()
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		# use the comment from the wrapped round if no new comment is provided
+		effective_comment = comment if comment is not None else (round.comment if hasattr(round, 'comment') else None)
+		
+		super().__init__(effective_comment)
 
 		self.setRoundType(round.type)
-		for key, value in round.production_coefficients.items():
-			self.production_coefficients[key] = value
 
-		self.setWeather(round.weather)
+		if hasattr(round, 'production_coefficients'):
+			for key, value in round.production_coefficients.items():
+				self.production_coefficients[key] = value
+
+		if hasattr(round, 'weather') and round.weather:
+			self.weather = round.weather.copy()
 
 class Windy(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.WINDY)
 
 class Rainy(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.RAINY)
 
 class Sunny(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.SUNNY)
 
 class Cloudy(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.CLOUDY)
 
 class Foggy(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.FOGGY)
 
 class Snowy(WeatherRound):
-	def __init__(self, round: Round):
-		super().__init__(round)
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
 		self.setWeather(WeatherType.SNOWY)
 
 class Script:

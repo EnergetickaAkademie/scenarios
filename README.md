@@ -27,6 +27,12 @@ def getScript():
 	sl = Slide(1)
 	script.addRound(sl)
 
+	#comments for the round types are supported
+	d = Sunny(Windy(Day("A windy sunny day")))
+	d.outage(Source.GAS)  #outage can be set for the round
+	print(d)  #printing the round will show the current state of the round
+	script.addRound(d)
+
 	return script
 ```
 

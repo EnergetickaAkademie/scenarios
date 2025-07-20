@@ -18,6 +18,11 @@ def getScript():
 	sl = Slide(1)
 	script.addRound(sl)
 
+	d = Sunny(Windy(Day("A windy sunny day")))
+	d.outage(Source.GAS)
+	print(d)
+	script.addRound(d)
+
 	return script
 
 if __name__ == "__main__":
