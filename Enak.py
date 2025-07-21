@@ -29,6 +29,12 @@ class WeatherType(Enum):
 
 class Building(Enum):
 	CITY_CENTER = "city_center"
+	CITY_CENTER_A = "city_center_a"
+	CITY_CENTER_B = "city_center_b"
+	CITY_CENTER_C = "city_center_c"
+	CITY_CENTER_D = "city_center_d"
+	CITY_CENTER_E = "city_center_e"
+	CITY_CENTER_F = "city_center_f"
 	FACTORY = "factory"
 	STADIUM = "stadium"
 	HOSPITAL = "hospital"
@@ -41,6 +47,9 @@ class Building(Enum):
 	LIVING_QUARTER_SMALL = "living_quarter_small"
 	LIVING_QUARTER_LARGE = "living_quarter_large"
 	SCHOOL = "school"
+
+CITY_CENTERS = [Building.CITY_CENTER_A, Building.CITY_CENTER_B, Building.CITY_CENTER_C,
+				Building.CITY_CENTER_D, Building.CITY_CENTER_E, Building.CITY_CENTER_F]
 
 class Round:
 	def __init__(self, comment: Optional[str] = None):
@@ -295,7 +304,7 @@ class Script:
 	def getPDF(self):
 		return self.pdf
 	
-	def changeConsupmtion(self, building: Building, day_consumption: int, night_consumption: int):
+	def changeBuildingConsumption(self, building: Building, day_consumption: int, night_consumption: int):
 		#change the building consumption for the given building type
 		#set the value change to the dictionary under the index of the latest round (will need to be handled by the interpreter)
 		if building in self.building_consumptions:
@@ -303,6 +312,20 @@ class Script:
 				self.building_changes[len(self.rounds) - 1] = []
 
 			self.building_changes[len(self.rounds) - 1].append((building, day_consumption, night_consumption))
+
+	#change consumption values for multiple buildings with the same value increase
+	# a list of buildings will be passed with a value increase tuple for night and day
+	# calls changeConsumption for each building, with the original value + the value increase
+	def changeBuildingsConsumptions(self, buildings: List[Building], value_increase: tuple):
+		for building in buildings:
+			if building in self.building_consumptions:
+				current_consumption = self.building_consumptions[building]
+
+				new_day_consumption = current_consumption[0] + value_increase[0]
+				new_night_consumption = current_consumption[1] + value_increase[1]
+
+				self.changeBuildingConsumption(building, new_day_consumption, new_night_consumption)
+
 
 	def step(self) -> bool:
 		if self.rounds:
@@ -318,11 +341,7 @@ class Script:
 				
 				return True
 			
-			else:
-				return False
-			
-		else:
-			return False
+		return False
 		
 	def getCurrentProductionCoefficients(self) -> dict:
 		if self.rounds and self.current_round_index > 0:
