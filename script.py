@@ -33,6 +33,8 @@ def getScript():
 	#same for the other teams
 
 	#FÁZE 2 - umístění dvou uhelek a jedné budovy, jednoduché vyrovnání soustavy
+	script.allowProduction(Source.COAL)
+
 	d = Day()
 	script.addRound(d)
 
@@ -41,6 +43,7 @@ def getScript():
 
 	#FÁZE 3 - spotřeba města roste o 60MW ve dne, o 120MW v noci
 	script.changeBuildingsConsumptions(CITY_CENTERS, (60, 120))
+	script.allowProduction(Source.HYDRO)
 
 	d = Day()
 	script.addRound(d)
@@ -48,19 +51,50 @@ def getScript():
 	n = Night()
 	script.addRound(n)
 
+	#FÁZE 4 - jaderky, spotřeba roste o 100MW
+	script.allowProduction(Source.NUCLEAR)
+	script.changeBuildingsConsumptions(CITY_CENTERS, (100, 100))
 
+	d = Day()
+	script.addRound(d)
+
+	n = Night()
+	script.addRound(n)
+
+	#FÁZE 5 - spotřeba města roste o 100MW, plynové elektrárny
+	script.changeBuildingsConsumptions(CITY_CENTERS, (100, 100))
+	script.allowProduction(Source.GAS)
+	
+	d = Day()
+	script.addRound(d)
+	
+	n = Night()
+	script.addRound(n)
+
+	#FÁZE 6 - spotřeba města roste o 200 MW, nový typ OZE
+	script.changeBuildingsConsumptions(CITY_CENTERS, (200, 200))
+	script.allowProduction(Source.WIND)
+	script.allowProduction(Source.PHOTOVOLTAIC)
+
+	#normal calm day (average wind, average sun)
+	d = Day()
+	script.addRound(d)
+
+	n = Night()
+	script.addRound(n)
+
+	#FÁZE 7 - scénáře
+
+	d = Windy(Sunny(Day()))
+	script.addRound(d)
 
 	n = Windy(Night())
 	script.addRound(n)
 
-	sl = Slide(6)
-	script.addRound(sl)
-	script.changeBuildingConsumption(Building.CITY_CENTER, 750, 300)
-
-	d = Sunny(Windy(Day("Koná se mistrovství světa v ledním hokeji")))
-	d.outage(Source.GAS) #there is a gas outage in this round
-	d.addBuildingModifier(Building.STADIUM, 100)  #increase stadium consumption because of a specific event
-	script.addRound(d)
+	# d = Sunny(Windy(Day("Koná se mistrovství světa v ledním hokeji")))
+	# d.outage(Source.GAS) #there is a gas outage in this round
+	# d.addBuildingModifier(Building.STADIUM, 100)  #increase stadium consumption because of a specific event
+	# script.addRound(d)
 
 	return script
 

@@ -68,15 +68,7 @@ class Round:
 class PlayRound(Round):
 	def __init__(self, comment: Optional[str] = None):
 		super().__init__(comment)
-		self.production_coefficients = {
-			Source.PHOTOVOLTAIC: 0.0,
-			Source.WIND: 0.0,
-			Source.NUCLEAR: 1.0,
-			Source.GAS: 1.0,
-			Source.HYDRO: 1.0,
-			Source.HYDRO_STORAGE: 1.0,
-			Source.COAL: 1.0
-		}
+		self.production_coefficients = {}
 
 		# production modifiers are added to the default building consumption defined in the script
 		# eg. if a building of type BuildingType.FACTORY has a default production of 1000 (MW)
@@ -87,6 +79,10 @@ class PlayRound(Round):
 			self.building_modifiers[building] = 0.0
 
 		self.weather = []
+
+	def setProductionCoefficients(self, coefficients: dict):
+		self.production_coefficients = coefficients
+		print(f"setting production coefficients")
 
 	def setWeather(self, weather: WeatherType):
 		if weather == WeatherType.SUNNY:
@@ -289,10 +285,33 @@ class Script:
 		self.rounds : List[Round] = []
 		self.building_changes = {}
 		self.pdf : str = None
-		self.building_consumptions = building_consumptions
+		self.building_consumptions = building_consumptions.copy()
 		self.current_round_index = 0
+		self.production_coefficients = {
+			Source.PHOTOVOLTAIC: 0.0,
+			Source.WIND: 0.0,
+			Source.NUCLEAR: 0.0,
+			Source.GAS: 0.0,
+			Source.HYDRO: 0.0,
+			Source.HYDRO_STORAGE: 0.0,
+			Source.COAL: 0.0
+		}
+
+	def changeProductionCoefficient(self, source: Source, coefficient: float):
+		if source in self.production_coefficients:
+			self.production_coefficients[source] = coefficient
+		else:
+			print(f"Warning: Source '{source}' not found in production coefficients.")
+
+	#syntactic sugar for setting production coefficient to 1.0
+	def allowProduction(self, source: Source):
+		self.changeProductionCoefficient(source, 1.0)
 
 	def addRound(self, round: Round):
+		"""Adds a round to the script and applies current production coefficients."""
+		if isinstance(round, PlayRound):
+			#round.production_coefficients = self.production_coefficients.copy()
+			round.setProductionCoefficients(self.production_coefficients.copy())
 		self.rounds.append(round)
 
 	def getRounds(self):
@@ -304,14 +323,13 @@ class Script:
 	def getPDF(self):
 		return self.pdf
 	
-	def changeBuildingConsumption(self, building: Building, day_consumption: int, night_consumption: int):
-		#change the building consumption for the given building type
-		#set the value change to the dictionary under the index of the latest round (will need to be handled by the interpreter)
+	def changeBuildingConsumption(self, building: Building, day_consumption_increase: int, night_consumption_increase: int):
+		#change the building consumption for the given building type by increasing the consumption by a select amount
 		if building in self.building_consumptions:
 			if self.building_changes.get(len(self.rounds) - 1) is None:
 				self.building_changes[len(self.rounds) - 1] = []
 
-			self.building_changes[len(self.rounds) - 1].append((building, day_consumption, night_consumption))
+			self.building_changes[len(self.rounds) - 1].append((building, day_consumption_increase, night_consumption_increase))
 
 	#change consumption values for multiple buildings with the same value increase
 	# a list of buildings will be passed with a value increase tuple for night and day
@@ -319,12 +337,8 @@ class Script:
 	def changeBuildingsConsumptions(self, buildings: List[Building], value_increase: tuple):
 		for building in buildings:
 			if building in self.building_consumptions:
-				current_consumption = self.building_consumptions[building]
-
-				new_day_consumption = current_consumption[0] + value_increase[0]
-				new_night_consumption = current_consumption[1] + value_increase[1]
-
-				self.changeBuildingConsumption(building, new_day_consumption, new_night_consumption)
+				day_increase, night_increase = value_increase
+				self.changeBuildingConsumption(building, day_increase, night_increase)
 
 
 	def step(self) -> bool:
@@ -337,7 +351,9 @@ class Script:
 				if self.building_changes.get(self.current_round_index - 1):
 					for change in self.building_changes[self.current_round_index - 1]:
 						building, day_consumption, night_consumption = change
-						self.building_consumptions[building] = (day_consumption, night_consumption)
+						old_day, old_night = self.building_consumptions[building]
+
+						self.building_consumptions[building] = (old_day + day_consumption, old_night + night_consumption)
 				
 				return True
 			
