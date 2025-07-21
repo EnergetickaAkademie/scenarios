@@ -44,6 +44,7 @@ def getScript():
 	#FÁZE 3 - spotřeba města roste o 60MW ve dne, o 120MW v noci
 	script.changeBuildingsConsumptions(CITY_CENTERS, (60, 120))
 	script.allowProduction(Source.HYDRO)
+	script.allowProduction(Source.HYDRO_STORAGE)
 
 	d = Day()
 	script.addRound(d)
@@ -67,7 +68,7 @@ def getScript():
 	
 	d = Day()
 	script.addRound(d)
-	
+
 	n = Night()
 	script.addRound(n)
 
