@@ -11,6 +11,7 @@ class Source(Enum):
 	HYDRO = "hydro"
 	HYDRO_STORAGE = "hydro_storage"
 	COAL = "coal"
+	BATTERY = "battery"
 
 class RoundType(Enum):
 	DAY = "day"
@@ -98,6 +99,8 @@ class PlayRound(Round):
 		
 		elif weather == WeatherType.SNOWY:
 			self.weather.append(WeatherType.SNOWY)
+			self.setPVCoefficient(0.0)
+			self.setBatteryCoefficient(0.0)
 
 		elif weather == WeatherType.FOGGY:
 			self.weather.append(WeatherType.FOGGY)
@@ -108,6 +111,7 @@ class PlayRound(Round):
 
 		elif weather == WeatherType.CALM:
 			self.weather.append(WeatherType.CALM)
+			self.setWindCoefficient(0.0)
 
 	def getType(self) -> RoundType:
 		return self.type
@@ -144,6 +148,15 @@ class PlayRound(Round):
 	def setCoalCoefficient(self, coefficient: float):
 		self.production_coefficients[Source.COAL] = coefficient
 
+	def setBatteryCoefficient(self, coefficient: float):
+		self.production_coefficients[Source.BATTERY] = coefficient
+
+	def setProductionCoefficient(self, source: Source, coefficient: float):
+		if source in self.production_coefficients:
+			self.production_coefficients[source] = coefficient
+		else:
+			print(f"Warning: Source '{source}' not found in production coefficients.")
+
 	def outage(self, source: Source):
 		if source in self.production_coefficients:
 			self.production_coefficients[source] = 0.0
@@ -155,6 +168,10 @@ class PlayRound(Round):
 			self.building_modifiers[building] += modifier
 		else:
 			raise ValueError(f"Unknown building type: {building}")
+		
+	def addBuildingsModifiers(self, buildings: List[Building], modifier: float):
+		for building in buildings:
+			self.addBuildingModifier(building, modifier)
 
 	def __str__(self):
 
@@ -280,6 +297,11 @@ class Snowy(WeatherRound):
 		super().__init__(round, comment)
 		self.setWeather(WeatherType.SNOWY)
 
+class Calm(WeatherRound):
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
+		self.setWeather(WeatherType.CALM)
+
 class Script:
 	def __init__(self, building_consumptions: dict):
 		self.rounds : List[Round] = []
@@ -294,7 +316,8 @@ class Script:
 			Source.GAS: 0.0,
 			Source.HYDRO: 0.0,
 			Source.HYDRO_STORAGE: 0.0,
-			Source.COAL: 0.0
+			Source.COAL: 0.0,
+			Source.BATTERY: 0.0
 		}
 
 	def changeProductionCoefficient(self, source: Source, coefficient: float):
