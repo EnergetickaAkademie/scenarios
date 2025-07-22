@@ -67,6 +67,9 @@ class Round:
 	def setRoundType(self, round_type: RoundType):
 		self.type = round_type
 
+	def getType(self) -> RoundType:
+		return self.type
+		
 	def __str__(self):
 		return f"Round(type={self.type}, comment={self.comment})"
 
@@ -117,8 +120,6 @@ class PlayRound(Round):
 			self.weather.append(WeatherType.CALM)
 			self.setWindCoefficient(0.0)
 
-	def getType(self) -> RoundType:
-		return self.type
 
 	def getWeather(self) -> Optional[List[WeatherType]]:
 		return self.weather
