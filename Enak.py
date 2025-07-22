@@ -4,49 +4,49 @@ from enum import Enum
 from typing import Optional, override, List
 
 class Source(Enum):
-	PHOTOVOLTAIC = "photovoltaic"
-	WIND = "wind"
-	NUCLEAR = "nuclear"
-	GAS = "gas"
-	HYDRO = "hydro"
-	HYDRO_STORAGE = "hydro_storage"
-	COAL = "coal"
+	PHOTOVOLTAIC = 1
+	WIND = 2
+	NUCLEAR = 3
+	GAS = 4
+	HYDRO = 5
+	HYDRO_STORAGE = 6
+	COAL = 7
 
 class RoundType(Enum):
-	DAY = "day"
-	NIGHT = "night"
-	SLIDE = "slide" #show a presentation slide
-	SLIDE_RANGE = "slide_range"
+	DAY = 1
+	NIGHT = 2
+	SLIDE = 3 #show a presentation slide
+	SLIDE_RANGE = 4
 
 class WeatherType(Enum):
-	SUNNY = "sunny"
-	RAINY = "rainy"
-	CLOUDY = "cloudy"
-	SNOWY = "snowy"
-	FOGGY = "foggy"
-	WINDY = "windy"
-	CALM = "calm"
+	SUNNY = 1
+	RAINY = 2
+	CLOUDY = 3
+	SNOWY = 4
+	FOGGY = 5
+	WINDY = 6
+	CALM = 7
 
 class Building(Enum):
-	CITY_CENTER = "city_center"
-	CITY_CENTER_A = "city_center_a"
-	CITY_CENTER_B = "city_center_b"
-	CITY_CENTER_C = "city_center_c"
-	CITY_CENTER_D = "city_center_d"
-	CITY_CENTER_E = "city_center_e"
-	CITY_CENTER_F = "city_center_f"
-	FACTORY = "factory"
-	STADIUM = "stadium"
-	HOSPITAL = "hospital"
-	UNIVERSITY = "university"
-	AIRPORT = "airport"
-	SHOPPING_MALL = "shopping_mall"
-	TECHNOLOGY_CENTER = "technology_center"
+	CITY_CENTER = 1
+	CITY_CENTER_A = 2
+	CITY_CENTER_B = 3
+	CITY_CENTER_C = 4
+	CITY_CENTER_D = 5
+	CITY_CENTER_E = 6
+	CITY_CENTER_F = 7
+	FACTORY = 8
+	STADIUM = 9
+	HOSPITAL = 10
+	UNIVERSITY = 11
+	AIRPORT = 12
+	SHOPPING_MALL = 13
+	TECHNOLOGY_CENTER = 14
 
-	FARM = "farm"
-	LIVING_QUARTER_SMALL = "living_quarter_small"
-	LIVING_QUARTER_LARGE = "living_quarter_large"
-	SCHOOL = "school"
+	FARM = 15
+	LIVING_QUARTER_SMALL = 16
+	LIVING_QUARTER_LARGE = 17
+	SCHOOL = 18
 
 CITY_CENTERS = [Building.CITY_CENTER_A, Building.CITY_CENTER_B, Building.CITY_CENTER_C,
 				Building.CITY_CENTER_D, Building.CITY_CENTER_E, Building.CITY_CENTER_F]
