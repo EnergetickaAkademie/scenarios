@@ -78,25 +78,34 @@ def getScript():
 	script.allowProduction(Source.PHOTOVOLTAIC)
 
 	#normal calm day (average wind, average sun)
-	d = Day()
-	script.addRound(d)
-
-	n = Night()
-	script.addRound(n)
-
-	#FÁZE 7 - scénáře
-
-	d = Windy(Sunny(Day()))
+	d = Sunny(Windy(Day()))
 	script.addRound(d)
 
 	n = Windy(Night())
 	script.addRound(n)
 
-	# d = Sunny(Windy(Day("Koná se mistrovství světa v ledním hokeji")))
-	# d.outage(Source.GAS) #there is a gas outage in this round
-	# d.addBuildingModifier(Building.STADIUM, 100)  #increase stadium consumption because of a specific event
-	# script.addRound(d)
+	#FÁZE 7 - scénáře
 
+	# Je zima, zataženo, sněží a je bezvětří.
+	d = Snowy(Calm(Day()))
+	script.addRound(d)
+
+	n = Snowy(Calm(Night()))
+	script.addRound(n)
+
+	# MS v hokeji, více lidí ve městě, porucha plynové elektrárny
+	d = Sunny(Windy(Day()))
+	d.outage(Source.GAS) #there is a gas outage in this round
+	d.addBuildingModifier(Building.STADIUM, 50)  #increase stadium consumption because of a specific event
+	d.addBuildingsModifiers(CITY_CENTERS, 600)
+	script.addRound(d)
+
+	n = Windy(Night())
+	n.outage(Source.GAS)
+	n.addBuildingModifier(Building.STADIUM, 100)  #more people at night
+	n.addBuildingsModifiers(CITY_CENTERS, 450)
+	script.addRound(n)
+	
 	return script
 
 if __name__ == "__main__":

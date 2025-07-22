@@ -3,7 +3,11 @@
 from enum import Enum
 from typing import Optional, override, List
 
-class Source(Enum):
+class ReadableEnum(Enum):
+    def __str__(self):
+        return self.name.replace('_', ' ').title()
+
+class Source(ReadableEnum):
 	PHOTOVOLTAIC = 1
 	WIND = 2
 	NUCLEAR = 3
@@ -11,14 +15,15 @@ class Source(Enum):
 	HYDRO = 5
 	HYDRO_STORAGE = 6
 	COAL = 7
+	BATTERY = 8
 
-class RoundType(Enum):
+class RoundType(ReadableEnum):
 	DAY = 1
 	NIGHT = 2
 	SLIDE = 3 #show a presentation slide
 	SLIDE_RANGE = 4
 
-class WeatherType(Enum):
+class WeatherType(ReadableEnum):
 	SUNNY = 1
 	RAINY = 2
 	CLOUDY = 3
@@ -27,7 +32,7 @@ class WeatherType(Enum):
 	WINDY = 6
 	CALM = 7
 
-class Building(Enum):
+class Building(ReadableEnum):
 	CITY_CENTER = 1
 	CITY_CENTER_A = 2
 	CITY_CENTER_B = 3
@@ -98,6 +103,8 @@ class PlayRound(Round):
 		
 		elif weather == WeatherType.SNOWY:
 			self.weather.append(WeatherType.SNOWY)
+			self.setPVCoefficient(0.0)
+			self.setBatteryCoefficient(0.0)
 
 		elif weather == WeatherType.FOGGY:
 			self.weather.append(WeatherType.FOGGY)
@@ -108,6 +115,7 @@ class PlayRound(Round):
 
 		elif weather == WeatherType.CALM:
 			self.weather.append(WeatherType.CALM)
+			self.setWindCoefficient(0.0)
 
 	def getType(self) -> RoundType:
 		return self.type
@@ -144,6 +152,15 @@ class PlayRound(Round):
 	def setCoalCoefficient(self, coefficient: float):
 		self.production_coefficients[Source.COAL] = coefficient
 
+	def setBatteryCoefficient(self, coefficient: float):
+		self.production_coefficients[Source.BATTERY] = coefficient
+
+	def setProductionCoefficient(self, source: Source, coefficient: float):
+		if source in self.production_coefficients:
+			self.production_coefficients[source] = coefficient
+		else:
+			print(f"Warning: Source '{source}' not found in production coefficients.")
+
 	def outage(self, source: Source):
 		if source in self.production_coefficients:
 			self.production_coefficients[source] = 0.0
@@ -155,6 +172,10 @@ class PlayRound(Round):
 			self.building_modifiers[building] += modifier
 		else:
 			raise ValueError(f"Unknown building type: {building}")
+		
+	def addBuildingsModifiers(self, buildings: List[Building], modifier: float):
+		for building in buildings:
+			self.addBuildingModifier(building, modifier)
 
 	def __str__(self):
 
@@ -280,6 +301,11 @@ class Snowy(WeatherRound):
 		super().__init__(round, comment)
 		self.setWeather(WeatherType.SNOWY)
 
+class Calm(WeatherRound):
+	def __init__(self, round: Round, comment: Optional[str] = None):
+		super().__init__(round, comment)
+		self.setWeather(WeatherType.CALM)
+
 class Script:
 	def __init__(self, building_consumptions: dict):
 		self.rounds : List[Round] = []
@@ -294,7 +320,8 @@ class Script:
 			Source.GAS: 0.0,
 			Source.HYDRO: 0.0,
 			Source.HYDRO_STORAGE: 0.0,
-			Source.COAL: 0.0
+			Source.COAL: 0.0,
+			Source.BATTERY: 0.0
 		}
 
 	def changeProductionCoefficient(self, source: Source, coefficient: float):
