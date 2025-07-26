@@ -31,6 +31,8 @@ class WeatherType(ReadableEnum):
 	FOGGY = 5
 	WINDY = 6
 	CALM = 7
+	BREEZY = 8
+	PARTLY_CLOUDY = 9
 
 class Building(ReadableEnum):
 	CITY_CENTER = 1
@@ -76,7 +78,8 @@ class Round:
 class PlayRound(Round):
 	def __init__(self, comment: Optional[str] = None):
 		super().__init__(comment)
-		self.production_coefficients = {}
+		self.production_coefficients = {source: 0.0 for source in Source}
+		self.production_changes = set()
 
 		# production modifiers are added to the default building consumption defined in the script
 		# eg. if a building of type BuildingType.FACTORY has a default production of 1000 (MW)
@@ -92,79 +95,63 @@ class PlayRound(Round):
 		self.production_coefficients = coefficients
 		print(f"setting production coefficients")
 
-	def setWeather(self, weather: WeatherType):
+	def addWeather(self, weather: WeatherType):
 		if weather == WeatherType.SUNNY:
 			self.weather.append(WeatherType.SUNNY)
-			self.setPVCoefficient(1.0)
+			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 1.0)
+
+		elif weather == WeatherType.PARTLY_CLOUDY:
+			self.weather.append(WeatherType.PARTLY_CLOUDY)
+			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.5)
+		
+		elif weather == WeatherType.CLOUDY:
+			self.weather.append(WeatherType.CLOUDY)
+			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.0)
 		
 		elif weather == WeatherType.RAINY:
 			self.weather.append(WeatherType.RAINY)
 		
-		elif weather == WeatherType.CLOUDY:
-			self.weather.append(WeatherType.CLOUDY)
-			self.setPVCoefficient(0.5)
-		
 		elif weather == WeatherType.SNOWY:
 			self.weather.append(WeatherType.SNOWY)
-			self.setPVCoefficient(0.0)
-			self.setBatteryCoefficient(0.0)
+			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.0)
+			self.setProductionCoefficient(Source.BATTERY, 0.5)
 
 		elif weather == WeatherType.FOGGY:
 			self.weather.append(WeatherType.FOGGY)
 
-		elif weather == WeatherType.WINDY:
-			self.weather.append(WeatherType.WINDY)
-			self.setWindCoefficient(1.0)
-
 		elif weather == WeatherType.CALM:
 			self.weather.append(WeatherType.CALM)
-			self.setWindCoefficient(0.0)
+			self.setProductionCoefficient(Source.WIND, 0.0)
 
+		elif weather == WeatherType.BREEZY:
+			self.weather.append(WeatherType.BREEZY)
+			self.setProductionCoefficient(Source.WIND, 0.5)
+
+		elif weather == WeatherType.WINDY:
+			self.weather.append(WeatherType.WINDY)
+			self.setProductionCoefficient(Source.WIND, 1.0)
 
 	def getWeather(self) -> Optional[List[WeatherType]]:
 		return self.weather
 
 	def setRoundType(self, round_type: RoundType):
 		self.type = round_type
-		if round_type == RoundType.DAY:
-			self.setPVCoefficient(0.8) # by default its not really sunny, so we set to some smaller value than exact 1.0
+		# if round_type == RoundType.DAY:
+		# 	self.setPVCoefficient(0.8) # by default its not really sunny, so we set to some smaller value than exact 1.0
 
-		elif round_type == RoundType.NIGHT:
-			self.setPVCoefficient(0.0)
-
-	def setPVCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.PHOTOVOLTAIC] = coefficient
-
-	def setWindCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.WIND] = coefficient
-
-	def setNuclearCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.NUCLEAR] = coefficient
-
-	def setGasCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.GAS] = coefficient
-
-	def setHydroCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.HYDRO] = coefficient
-
-	def setHydroStorageCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.HYDRO_STORAGE] = coefficient
-
-	def setCoalCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.COAL] = coefficient
-
-	def setBatteryCoefficient(self, coefficient: float):
-		self.production_coefficients[Source.BATTERY] = coefficient
+		# elif round_type == RoundType.NIGHT:
+		# 	self.setPVCoefficient(0.0)
 
 	def setProductionCoefficient(self, source: Source, coefficient: float):
 		if source in self.production_coefficients:
 			self.production_coefficients[source] = coefficient
+			self.production_changes.add(source)
 		else:
 			print(f"Warning: Source '{source}' not found in production coefficients.")
 
 	def outage(self, source: Source):
 		if source in self.production_coefficients:
-			self.production_coefficients[source] = 0.0
+			self.setProductionCoefficient(source, 0.0)
 		else:
 			raise ValueError(f"Unknown energy source: {source}")
 		
@@ -174,7 +161,7 @@ class PlayRound(Round):
 		else:
 			raise ValueError(f"Unknown building type: {building}")
 		
-	def addBuildingsModifiers(self, buildings: List[Building], modifier: float):
+	def addBuildingModifiers(self, buildings: List[Building], modifier: float):
 		for building in buildings:
 			self.addBuildingModifier(building, modifier)
 
@@ -202,15 +189,121 @@ class PlayRound(Round):
 		return res
 		#return f"Round(type={self.type}, weather={self.weather}, production_coefficients={self.production_coefficients}, comment={self.comment})"
 
-class Day(PlayRound):
-	def __init__(self, comment: Optional[str] = None):
-		super().__init__(comment)
-		self.setRoundType(RoundType.DAY)
+class Day(): #create a day builder class
+	def __init__(self):
+		self.round = PlayRound()
+		self.round.setRoundType(RoundType.DAY)
 
-class Night(PlayRound):
-	def __init__(self, comment: Optional[str] = None):
-		super().__init__(comment)
-		self.setRoundType(RoundType.NIGHT)
+	def sunny(self):
+		self.round.addWeather(WeatherType.SUNNY)
+		return self
+	
+	def windy(self):
+		self.round.addWeather(WeatherType.WINDY)
+		return self
+	
+	def rainy(self):
+		self.round.addWeather(WeatherType.RAINY)
+		return self
+	
+	def cloudy(self):
+		self.round.addWeather(WeatherType.CLOUDY)
+		return self
+	
+	def foggy(self):
+		self.round.addWeather(WeatherType.FOGGY)
+		return self
+	
+	def snowy(self):
+		self.round.addWeather(WeatherType.SNOWY)
+		return self
+	
+	def calm(self):
+		self.round.addWeather(WeatherType.CALM)
+		return self
+	
+	def partly_cloudy(self):
+		self.round.addWeather(WeatherType.PARTLY_CLOUDY)
+		return self
+	
+	def breezy(self):
+		self.round.addWeather(WeatherType.BREEZY)
+		return self
+
+	def setCoefficient(self, source: Source, coefficient: float):
+		self.round.setProductionCoefficient(source, coefficient)
+		return self
+	
+	def outage(self, source: Source):
+		self.round.outage(source)
+		return self
+	
+	def addBuildingModifier(self, building: Building, modifier: float):
+		self.round.addBuildingModifier(building, modifier)
+		return self
+	
+	def addBuildingModifiers(self, buildings: List[Building], modifier: float):
+		self.round.addBuildingModifiers(buildings, modifier)
+		return self
+
+	def build(self) -> PlayRound:
+		return self.round
+
+class Night():
+	def __init__(self):
+		self.round = PlayRound()
+		self.round.setRoundType(RoundType.NIGHT)
+	
+	def windy(self):
+		self.round.addWeather(WeatherType.WINDY)
+		return self
+	
+	def rainy(self):
+		self.round.addWeather(WeatherType.RAINY)
+		return self
+	
+	def cloudy(self):
+		self.round.addWeather(WeatherType.CLOUDY)
+		return self
+	
+	def foggy(self):
+		self.round.addWeather(WeatherType.FOGGY)
+		return self
+	
+	def snowy(self):
+		self.round.addWeather(WeatherType.SNOWY)
+		return self
+	
+	def calm(self):
+		self.round.addWeather(WeatherType.CALM)
+		return self
+	
+	def partly_cloudy(self):
+		self.round.addWeather(WeatherType.PARTLY_CLOUDY)
+		return self
+	
+	def breezy(self):
+		self.round.addWeather(WeatherType.BREEZY)
+		return self
+	
+	def setCoefficient(self, source: Source, coefficient: float):
+		self.round.setProductionCoefficient(source, coefficient)
+		return self
+	
+	def outage(self, source: Source):
+		self.round.outage(source)
+		return self
+	
+	def addBuildingModifier(self, building: Building, modifier: float):
+		self.round.addBuildingModifier(building, modifier)
+		return self
+	
+	def addBuildingModifiers(self, buildings: List[Building], modifier: float):
+		self.round.addBuildingModifiers(buildings, modifier)
+		return self
+	
+	def build(self) -> PlayRound:
+		return self.round
 
 class Slide(Round):
 	def __init__(self, slide_number, comment: Optional[str] = None):
@@ -250,63 +343,6 @@ class SlideRange(Round):
 	def __str__(self):
 		return f"SlideRange(start={self.start}, end={self.end})"
 
-class WeatherRound(PlayRound):
-	def __init__(self, round: PlayRound, comment: Optional[str] = None):
-		# use the comment from the wrapped round if no new comment is provided
-		effective_comment = comment if comment is not None else (round.comment if hasattr(round, 'comment') else None)
-		
-		if not isinstance(round, PlayRound):
-			raise TypeError("Expected a PlayRound instance for WeatherRound initialization.")
-
-		super().__init__(effective_comment)
-
-		self.setRoundType(round.type)
-
-		if hasattr(round, 'production_coefficients'):
-			for key, value in round.production_coefficients.items():
-				self.production_coefficients[key] = value
-
-		else:
-			raise ValueError("The provided round does not have production coefficients.")
-
-		if hasattr(round, 'weather') and round.weather:
-			self.weather = round.weather.copy()
-
-class Windy(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.WINDY)
-
-class Rainy(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.RAINY)
-
-class Sunny(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.SUNNY)
-
-class Cloudy(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.CLOUDY)
-
-class Foggy(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.FOGGY)
-
-class Snowy(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.SNOWY)
-
-class Calm(WeatherRound):
-	def __init__(self, round: Round, comment: Optional[str] = None):
-		super().__init__(round, comment)
-		self.setWeather(WeatherType.CALM)
-
 class Script:
 	def __init__(self, building_consumptions: dict):
 		self.rounds : List[Round] = []
@@ -314,33 +350,38 @@ class Script:
 		self.pdf : str = None
 		self.building_consumptions = building_consumptions.copy()
 		self.current_round_index = 0
-		self.production_coefficients = {
-			Source.PHOTOVOLTAIC: 0.0,
-			Source.WIND: 0.0,
-			Source.NUCLEAR: 0.0,
-			Source.GAS: 0.0,
-			Source.HYDRO: 0.0,
-			Source.HYDRO_STORAGE: 0.0,
-			Source.COAL: 0.0,
-			Source.BATTERY: 0.0
-		}
+		self.master_production_coefficients = {source: 0.0 for source in Source}
 
-	def changeProductionCoefficient(self, source: Source, coefficient: float):
-		if source in self.production_coefficients:
-			self.production_coefficients[source] = coefficient
-		else:
-			print(f"Warning: Source '{source}' not found in production coefficients.")
+	def changeMasterProductionCoefficient(self, source: Source, coefficient: float):
+		self.master_production_coefficients[source] = coefficient
 
 	#syntactic sugar for setting production coefficient to 1.0
 	def allowProduction(self, source: Source):
-		self.changeProductionCoefficient(source, 1.0)
+		self.changeMasterProductionCoefficient(source, 1.0)
 
-	def addRound(self, round: Round):
+	def addRound(self, rnd: Round):
 		"""Adds a round to the script and applies current production coefficients."""
-		if isinstance(round, PlayRound):
-			#round.production_coefficients = self.production_coefficients.copy()
-			round.setProductionCoefficients(self.production_coefficients.copy())
-		self.rounds.append(round)
+		if isinstance(rnd, PlayRound):
+			#multiply each of the PlayRound production coefficients by the master production coefficient in the current round
+			#if the master coefficient does not exist, is is inherently the last set value
+
+			#if the source master production coefficient does not exist in this round, copy the value from the last round
+			print(f"{rnd.getRoundType()} round {len(self.rounds)}")
+			print()
+			for source in rnd.production_coefficients:
+				print(f"{source} round: {rnd.production_coefficients[source]}, master: {self.master_production_coefficients[source]}", end="")
+
+				#if the value was not explicitly set in the round, force a change
+				if source not in rnd.production_changes:
+					rnd.production_coefficients[source] = self.master_production_coefficients[source]
+
+				#if it was set, multiply it by the current scenario value
+				else:
+					rnd.production_coefficients[source] *= self.master_production_coefficients[source]
+
+				print(f", result: {rnd.production_coefficients[source]} set: {'T' if source in rnd.production_changes else 'F'}")
+
+		self.rounds.append(rnd)
 
 	def getRounds(self):
 		return self.rounds
@@ -414,27 +455,48 @@ class Script:
 		return 0.0
 
 	def getCurrentWeather(self) -> Optional[List[WeatherType]]:
+		if not isinstance(self.rounds[self.current_round_index - 1], PlayRound):
+			print(f"Warning: Current round {self.getCurrentRoundType()} is not a PlayRound, cannot get weather.")
+			return None
+
 		if self.rounds and self.current_round_index > 0:
-			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
-				return self.rounds[self.current_round_index - 1].getWeather()
+			return self.rounds[self.current_round_index - 1].getWeather()
 		
+		else:
+			print("Warning: No current round available, cannot get current weather.")
+
 		return None
 	
 	def getCurrentRoundType(self) -> Optional[Round]:
 		#return if current round is day, night, or slide (return the type)
+		
 		if self.rounds and self.current_round_index > 0:
 			return self.rounds[self.current_round_index - 1].getType()
+
+		else:
+			print("Warning: No current round available, cannot get current round type.")
 
 		return None
 
 	def getCurrentRound(self) -> Optional[Round]:
+
 		if self.rounds and self.current_round_index > 0:
 			return self.rounds[self.current_round_index - 1]
 		
+		else:
+			print("Warning: No current round available, cannot get current round.")
+
 		return None
 	
 	def getCurrentSlideNumber(self) -> Optional[int]:
+		if not isinstance(self.rounds[self.current_round_index - 1], Slide):
+			print(f"Warning: Current round {self.getCurrentRoundType()} is not a Slide, cannot get slide number.")
+			return None
+		
 		if self.rounds and self.current_round_index > 0:
 			return self.rounds[self.current_round_index - 1].getSlideNumber()
+
+		else:
+			print("Warning: No current round available, cannot get slide number.")
 
 		return None
