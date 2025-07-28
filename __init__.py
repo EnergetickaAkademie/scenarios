@@ -14,14 +14,6 @@ from .Enak import (
 	Slide,
 	SlideRange,
 
-	WeatherRound,
-	Windy,
-	Rainy,
-	Sunny,
-	Cloudy,
-	Foggy,
-	Snowy,
-
 	Script
 )
 
@@ -40,14 +32,6 @@ __all__ = [
 	'Night',
 	'Slide',
 	'SlideRange',
-
-	'WeatherRound',
-	'Windy',
-	'Rainy',
-	'Sunny',
-	'Cloudy',
-	'Foggy',
-	'Snowy',
 
 	'Script'
 ]

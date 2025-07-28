@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Optional, override, List
 
 class ReadableEnum(Enum):
-    def __str__(self):
-        return self.name.replace('_', ' ').title()
+	def __str__(self):
+		return self.name.replace('_', ' ').title()
 
 class Source(ReadableEnum):
 	PHOTOVOLTAIC = 1
