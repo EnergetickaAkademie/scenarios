@@ -1,7 +1,6 @@
-#create date types enum
-
 from enum import Enum
 from typing import Optional, override, List
+import json
 
 class ReadableEnum(Enum):
 	def __str__(self):
@@ -554,17 +553,22 @@ class Script:
 		return None
 	
 	def getCurrentSlideNumber(self) -> Optional[int]:
-		if not isinstance(self.rounds[self.current_round_index - 1], Slide):
+		rnd = self.getCurrentRound()
+
+		if not isinstance(rnd, Slide):
 			print(f"Warning: Current round {self.getCurrentRoundType()} is not a Slide, cannot get slide number.")
 			return None
+
+		return rnd.getSlideNumber()
+	
+	def getCurrentSlideNumbers(self) -> Optional[List[int]]:
+		rnd = self.getCurrentRound()
+
+		if not isinstance(rnd, SlideRange):
+			print(f"Warning: Current round {self.getCurrentRoundType()} is not a SlideRange, cannot get slide numbers.")
+			return None
 		
-		if self.rounds and self.current_round_index > 0:
-			return self.rounds[self.current_round_index - 1].getSlideNumber()
-
-		else:
-			print("Warning: No current round available, cannot get slide number.")
-
-		return None
+		return rnd.getRange()
 	
 	def getCurrentProductionRange(self, source: Source) -> Optional[tuple]:
 		#return the production range for the given source, multiplied by the current production coefficients
@@ -579,3 +583,64 @@ class Script:
 			print(f"Warning: Source '{source}' not found in source productions.")
 		
 		return (0.0, 0.0)
+	
+	def getCurrentState(self, fmt = None):
+		isPlayRound = isinstance(self.getCurrentRound(), PlayRound)
+		isSlide = isinstance(self.getCurrentRound(), Slide)
+		isSlideRange = isinstance(self.getCurrentRound(), SlideRange)
+
+		nums = None
+		if isSlide:
+			nums = [self.getCurrentSlideNumber()]
+		elif isSlideRange:
+			nums = self.getCurrentSlideNumbers()
+
+		state = {
+			"round_type": self.getCurrentRoundType().name if self.getCurrentRoundType() else None,
+			"slide_numbers" : nums,
+			"weather": [w.name for w in self.getCurrentWeather()] if isPlayRound and self.getCurrentWeather() else [],
+			"production_coefficients": {k.name: v for k, v in self.getCurrentProductionCoefficients().items()} if isPlayRound else {},
+			"building_consumptions": {b.name: self.getCurrentBuildingConsumption(b) for b in Building} if isPlayRound else {},
+			"production_ranges": {s.name: self.getCurrentProductionRange(s) for s in Source} if isPlayRound else {}
+		}
+
+		if fmt == "json":
+			return json.dumps(state, indent=4)
+		
+		if fmt == "espdata":
+			acc = ""
+			#round Type
+			acc += f"{self.getCurrentRoundType().value:02x}" if self.getCurrentRoundType() else "00"
+
+			#num building types, num source types
+			acc += f"{len(Building):02x}{len(Source):02x}"
+
+			#weather bitmask
+			weather_mask = 0
+			if isPlayRound and self.getCurrentWeather():
+				for weather_enum in self.getCurrentWeather():
+					#create a bitmask from weather enum values
+					weather_mask |= (1 << (weather_enum.value - 1))
+			acc += f"{weather_mask:02x}"
+
+			#building consumptions
+			if isPlayRound:
+				for building in Building:
+					consumption = int(self.getCurrentBuildingConsumption(building))
+					acc += f"{consumption:04x}" #use 4 hex chars (16-bit) for consumption
+			else:
+				acc += "00" * len(Building) * 2 #placeholder if not a play round
+
+			#production ranges
+			if isPlayRound:
+				for source in Source:
+					min_prod, max_prod = self.getCurrentProductionRange(source)
+					# convert float to int before formatting
+					acc += f"{int(min_prod):04x}{int(max_prod):04x}" #use 4 hex chars for production
+			else:
+				acc += "00" * len(Source) * 4 #placeholder
+
+			return acc
+		
+		return state
+		
