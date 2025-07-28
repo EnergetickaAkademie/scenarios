@@ -22,10 +22,24 @@ building_consumptions = {
 	Building.SCHOOL: (80, 30)
 }
 
+source_productions = {
+	#these numbers define the minimum and maximum
+	Source.COAL: (250, 500),
+	Source.HYDRO: (0, 100),
+	Source.HYDRO_STORAGE: (-200, 200),
+	Source.GAS: (0, 500),
+	Source.NUCLEAR: (900, 1000),
+	Source.WIND: (0, 100),
+	Source.PHOTOVOLTAIC: (0, 100),
+	Source.BATTERY: (-200, 200)
+}
+
 def getScript():
-	script = Script(building_consumptions)
+	script = Script(building_consumptions, source_productions)
 
 	script.setPDF("prednaska.pdf")
+
+	script.setVerbose(True)
 
 	#FÁZE 1 - prezentace
 	sr = SlideRange(1, 5)
@@ -34,7 +48,10 @@ def getScript():
 	#FÁZE 2 - umístění dvou uhelek a jedné budovy, jednoduché vyrovnání soustavy
 	script.allowProduction(Source.COAL)
 
-	d = Day().build()
+	d = (Day()
+		.comment("Uhelky")
+		.infoFile("/info/uhelky.md")
+		.build())
 	script.addRound(d)
 
 	n = Night().setCoefficient(Source.HYDRO, 1.0).build()
@@ -107,6 +124,7 @@ def getScript():
 		.outage(Source.GAS)
 		.addBuildingModifier(Building.STADIUM, 50)
 		.addBuildingModifiers(CITY_CENTERS, 600)
+		.comment("MS v hokeji")
 		.build())
 	script.addRound(d)
 

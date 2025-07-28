@@ -59,9 +59,10 @@ CITY_CENTERS = [Building.CITY_CENTER_A, Building.CITY_CENTER_B, Building.CITY_CE
 				Building.CITY_CENTER_D, Building.CITY_CENTER_E, Building.CITY_CENTER_F]
 
 class Round:
-	def __init__(self, comment: Optional[str] = None):
+	def __init__(self):
 		self.type = None
-		self.comment = comment
+		self.comment = None
+		self.info_file = None
 
 	def getRoundType(self) -> RoundType:
 		return self.type
@@ -71,13 +72,25 @@ class Round:
 
 	def getType(self) -> RoundType:
 		return self.type
+
+	def setComment(self, comment: str):
+		self.comment = comment
+
+	def getComment(self) -> Optional[str]:
+		return self.comment
+	
+	def setInfoFile(self, info_file: str):
+		self.info_file = info_file
+
+	def getInfoFile(self) -> Optional[str]:
+		return self.info_file
 		
 	def __str__(self):
 		return f"Round(type={self.type}, comment={self.comment})"
 
 class PlayRound(Round):
-	def __init__(self, comment: Optional[str] = None):
-		super().__init__(comment)
+	def __init__(self):
+		super().__init__()
 		self.production_coefficients = {source: 0.0 for source in Source}
 		self.production_changes = set()
 
@@ -246,6 +259,14 @@ class Day(): #create a day builder class
 		self.round.addBuildingModifiers(buildings, modifier)
 		return self
 
+	def comment(self, comment: str):
+		self.round.setComment(comment)
+		return self
+	
+	def infoFile(self, info_file: str):
+		self.round.setInfoFile(info_file)
+		return self
+
 	def build(self) -> PlayRound:
 		return self.round
 
@@ -302,12 +323,20 @@ class Night():
 		self.round.addBuildingModifiers(buildings, modifier)
 		return self
 	
+	def comment(self, comment: str):
+		self.round.setComment(comment)
+		return self
+	
+	def infoFile(self, info_file: str):
+		self.round.setInfoFile(info_file)
+		return self
+	
 	def build(self) -> PlayRound:
 		return self.round
 
 class Slide(Round):
-	def __init__(self, slide_number, comment: Optional[str] = None):
-		super().__init__(comment)
+	def __init__(self, slide_number):
+		super().__init__()
 		self.setRoundType(RoundType.SLIDE)
 		self.slide_number = slide_number
 
@@ -321,8 +350,8 @@ class Slide(Round):
 		return f"Slide(slide_number={self.slide_number})"
 	
 class SlideRange(Round):
-	def __init__(self, start: int, end: int, comment: Optional[str] = None):
-		super().__init__(comment)
+	def __init__(self, start: int, end: int):
+		super().__init__()
 		self.setRoundType(RoundType.SLIDE_RANGE)
 		self.start = start
 		self.end = end
@@ -344,13 +373,19 @@ class SlideRange(Round):
 		return f"SlideRange(start={self.start}, end={self.end})"
 
 class Script:
-	def __init__(self, building_consumptions: dict):
+	def __init__(self, building_consumptions: dict, source_productions: dict):
 		self.rounds : List[Round] = []
 		self.building_changes = {}
+		self.production_changes = {}
 		self.pdf : str = None
 		self.building_consumptions = building_consumptions.copy()
+		self.source_productions = source_productions.copy()
 		self.current_round_index = 0
 		self.master_production_coefficients = {source: 0.0 for source in Source}
+		self.verbose = False
+
+	def setVerbose(self, verbose: bool):
+		self.verbose = verbose
 
 	def changeMasterProductionCoefficient(self, source: Source, coefficient: float):
 		self.master_production_coefficients[source] = coefficient
@@ -359,6 +394,12 @@ class Script:
 	def allowProduction(self, source: Source):
 		self.changeMasterProductionCoefficient(source, 1.0)
 
+	def getCurrentProductionCoefficient(self, source: Source) -> float:
+		#get the current production coefficient for the given source in the current round
+		if self.rounds and self.current_round_index > 0:
+			if isinstance(self.rounds[self.current_round_index - 1], PlayRound):
+				return self.rounds[self.current_round_index - 1].production_coefficients.get(source, 0.0)
+
 	def addRound(self, rnd: Round):
 		"""Adds a round to the script and applies current production coefficients."""
 		if isinstance(rnd, PlayRound):
@@ -366,10 +407,14 @@ class Script:
 			#if the master coefficient does not exist, is is inherently the last set value
 
 			#if the source master production coefficient does not exist in this round, copy the value from the last round
-			print(f"{rnd.getRoundType()} round {len(self.rounds)}")
-			print()
+			
+			if self.verbose:
+				print(f"{rnd.getRoundType()} round {len(self.rounds)}")
+				print()
 			for source in rnd.production_coefficients:
-				print(f"{source} round: {rnd.production_coefficients[source]}, master: {self.master_production_coefficients[source]}", end="")
+				
+				if self.verbose:
+					print(f"{source} round: {rnd.production_coefficients[source]}, master: {self.master_production_coefficients[source]}", end="")
 
 				#if the value was not explicitly set in the round, force a change
 				if source not in rnd.production_changes:
@@ -379,7 +424,8 @@ class Script:
 				else:
 					rnd.production_coefficients[source] *= self.master_production_coefficients[source]
 
-				print(f", result: {rnd.production_coefficients[source]} set: {'T' if source in rnd.production_changes else 'F'}")
+				if self.verbose:
+					print(f", result: {rnd.production_coefficients[source]} set: {'T' if source in rnd.production_changes else 'F'}")
 
 		self.rounds.append(rnd)
 
@@ -409,6 +455,13 @@ class Script:
 				day_increase, night_increase = value_increase
 				self.changeBuildingConsumption(building, day_increase, night_increase)
 
+	def changeSourceProduction(self, source: Source, min_production_increase: int, max_production_increase: int):
+		#change the source production for the given source by increasing the production by a select amount
+		if source in self.source_productions:
+			if self.production_changes.get(len(self.rounds) - 1) is None:
+				self.production_changes[len(self.rounds) - 1] = []
+
+			self.production_changes[len(self.rounds) - 1].append((source, min_production_increase, max_production_increase))
 
 	def step(self) -> bool:
 		if self.rounds:
@@ -423,7 +476,19 @@ class Script:
 						old_day, old_night = self.building_consumptions[building]
 
 						self.building_consumptions[building] = (old_day + day_consumption, old_night + night_consumption)
-				
+
+						if self.verbose:
+							print(f"Updated {building} consumption by {day_consumption}-{night_consumption}, new values: day={self.building_consumptions[building][0]}, night={self.building_consumptions[building][1]}")
+				if self.production_changes.get(self.current_round_index - 1):
+					for change in self.production_changes[self.current_round_index - 1]:
+						source, min_production, max_production = change
+						old_min, old_max = self.source_productions[source]
+
+						self.source_productions[source] = (old_min + min_production, old_max + max_production)
+
+						if self.verbose:
+							print(f"Updated {source} production by {min_production}-{max_production}, new values: min={self.source_productions[source][0]}, max={self.source_productions[source][1]}")
+
 				return True
 			
 		return False
@@ -500,3 +565,17 @@ class Script:
 			print("Warning: No current round available, cannot get slide number.")
 
 		return None
+	
+	def getCurrentProductionRange(self, source: Source) -> Optional[tuple]:
+		#return the production range for the given source, multiplied by the current production coefficients
+		if source in self.source_productions:
+			min_production, max_production = self.source_productions[source]
+			current_coefficient = self.getCurrentProductionCoefficient(source)
+
+			if current_coefficient is not None:
+				return (min_production * current_coefficient, max_production * current_coefficient)
+			
+		else:
+			print(f"Warning: Source '{source}' not found in source productions.")
+		
+		return (0.0, 0.0)
