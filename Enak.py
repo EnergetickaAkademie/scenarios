@@ -126,6 +126,7 @@ class PlayRound(Round):
 		elif weather == WeatherType.SNOWY:
 			self.weather.append(WeatherType.SNOWY)
 			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.0)
+			self.setProductionCoefficient(Source.WIND, 0.6)
 			self.setProductionCoefficient(Source.BATTERY, 0.5)
 
 		elif weather == WeatherType.FOGGY:
@@ -334,42 +335,37 @@ class Night():
 		return self.round
 
 class Slide(Round):
-	def __init__(self, slide_number):
+	def __init__(self, slide_path: str):
 		super().__init__()
 		self.setRoundType(RoundType.SLIDE)
-		self.slide_number = slide_number
+		self.slide = slide_path
 
-	def setSlideNumber(self, slide_number: int):
-		self.slide_number = slide_number
+	def setSlide(self, slide: str):
+		self.slide = slide
 
-	def getSlideNumber(self) -> Optional[int]:
-		return self.slide_number
+	def getSlide(self) -> Optional[str]:
+		return self.slide
 	
 	def __str__(self):
-		return f"Slide(slide_number={self.slide_number})"
+		return f"Slide(slide={self.slide})"
 	
 class SlideRange(Round):
-	def __init__(self, start: int, end: int):
+	def __init__(self, slides: List[str] = None):
 		super().__init__()
 		self.setRoundType(RoundType.SLIDE_RANGE)
-		self.start = start
-		self.end = end
+		self.slides = [] if slides is None else slides
 
-	def getStart(self) -> int:
-		return self.start
-	
-	def getEnd(self) -> int:
-		return self.end
-	
-	def getRange(self) -> tuple:
-		return (self.start, self.end)
-	
-	def setRange(self, start: int, end: int):
-		self.start = start
-		self.end = end
+	def setSlides(self, slides: List[str]):
+		self.slides = slides
+
+	def addSlide(self, slide: str):
+		self.slides.append(slide)
+
+	def getSlides(self) -> List[str]:
+		return self.slides
 
 	def __str__(self):
-		return f"SlideRange(start={self.start}, end={self.end})"
+		return f"SlideRange(slides={self.slides})"
 
 class Script:
 	def __init__(self, building_consumptions: dict, source_productions: dict):
@@ -552,23 +548,23 @@ class Script:
 
 		return None
 	
-	def getCurrentSlideNumber(self) -> Optional[int]:
+	def getCurrentSlide(self) -> Optional[str]:
 		rnd = self.getCurrentRound()
 
 		if not isinstance(rnd, Slide):
-			print(f"Warning: Current round {self.getCurrentRoundType()} is not a Slide, cannot get slide number.")
+			print(f"Warning: Current round {self.getCurrentRoundType()} is not a Slide, cannot get slide path.")
 			return None
 
-		return rnd.getSlideNumber()
-	
-	def getCurrentSlideNumbers(self) -> Optional[List[int]]:
+		return rnd.getSlide()
+
+	def getCurrentSlides(self) -> Optional[List[str]]:
 		rnd = self.getCurrentRound()
 
 		if not isinstance(rnd, SlideRange):
-			print(f"Warning: Current round {self.getCurrentRoundType()} is not a SlideRange, cannot get slide numbers.")
+			print(f"Warning: Current round {self.getCurrentRoundType()} is not a SlideRange, cannot get slide paths.")
 			return None
 		
-		return rnd.getRange()
+		return rnd.getSlides()
 	
 	def getCurrentProductionRange(self, source: Source) -> Optional[tuple]:
 		#return the production range for the given source, multiplied by the current production coefficients
