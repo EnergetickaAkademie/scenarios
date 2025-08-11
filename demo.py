@@ -77,6 +77,7 @@ def getScript():
 
 	#FÁZE 4 - jaderky, spotřeba roste o 100MW
 	script.allowProduction(Source.NUCLEAR)
+	script.allowProduction(Source.BATTERY)
 	script.changeBuildingsConsumptions(CITY_CENTERS, (100, 100))
 
 	d = Day().build()
