@@ -126,8 +126,8 @@ class PlayRound(Round):
 		elif weather == WeatherType.SNOWY:
 			self.weather.append(WeatherType.SNOWY)
 			self.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.0)
-			self.setProductionCoefficient(Source.WIND, 0.6)
-			self.setProductionCoefficient(Source.BATTERY, 0.5)
+			#self.setProductionCoefficient(Source.WIND, 0.6)
+			#self.setProductionCoefficient(Source.BATTERY, 0.5)
 
 		elif weather == WeatherType.FOGGY:
 			self.weather.append(WeatherType.FOGGY)
