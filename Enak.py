@@ -274,6 +274,7 @@ class Night():
 	def __init__(self):
 		self.round = PlayRound()
 		self.round.setRoundType(RoundType.NIGHT)
+		self.round.setProductionCoefficient(Source.PHOTOVOLTAIC, 0.0)
 	
 	def windy(self):
 		self.round.addWeather(WeatherType.WINDY)
